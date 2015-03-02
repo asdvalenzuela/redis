@@ -20,7 +20,7 @@ class SimpleDatabase(object):
 
 	def unset(self, name):
 		if name in self.database:
-			del self.database[name]
+			self.set_(name, None)
 
 	def numequalto(self, value):
 		count = 0
