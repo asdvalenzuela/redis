@@ -1,83 +1,86 @@
-import copy
+class SimpleDatabase(object):
 
-def set_(commands, redis_dictionary, reverse_dictionary, stack):
-	if (commands[1] in redis_dictionary) and (stack == []):
-		reverse_dictionary[redis_dictionary[commands[1]]].remove(commands[1])
-		if reverse_dictionary[redis_dictionary[commands[1]]] == []:
-			del reverse_dictionary[redis_dictionary[commands[1]]]
-	dict[commands[1]] = commands[2]
-	if commands[2] not in reverse_dictionary:
-		reverse_dictionary[commands[2]] = [commands[1]]
-	else:
-		reverse_dictionary[commands[2]].append(commands[1])
+	def __init__(self):
+		self.transactions = []
+		self.database = {}
 
-def get(commands, redis_dictionary):
-	if commands[1] in redis_dictionary:
-		print str(redis_dictionary[commands[1]]) 
-	else:
-		print 'NULL'
+	def set_(self, name, value):
+		if self.transactions:
+			if name in self.database and name not in self.transactions[0]:
+				self.transactions[0][name] = self.database[name]
+			if name not in self.database:
+				self.transactions[0][name] = None
+		self.write(name, value)
 
-def unset(commands, redis_dictionary, reverse_dictionary):
-	reverse_dictionary[redis_dictionary[commands[1]]].remove(commands[1])
-	del redis_dictionary[commands[1]]
+	def get(self, name):
+		if name in self.database:
+			return str(self.database[name])
+		else:
+			return 'NULL'
 
-def numequalto(commands, reverse_dictionary):
-	if commands[1] in reverse_dictionary:
-		print str(len(reverse_dictionary[commands[1]]))
-	else:
-		print '0'
+	def unset(self, name):
+		if name in self.database:
+			del self.database[name]
 
-def begin(redis_dictionary, reverse_dictionary, stack):
-	temp_redis_dict = copy.deepcopy(redis_dictionary)
-	temp_reverse_dict = copy.deepcopy(reverse_dictionary)
-	stack.append((temp_redis_dict, temp_reverse_dict))
+	def numequalto(self, value):
+		count = 0
+		for val in self.database.values():
+			if val == value:
+				count += 1
+		return count
 
-def rollback(stack):
-	if len(stack) > 0:
-		stack.pop()
-	else:
-		print 'NO TRANSACTION'
+	def write(self, name, value):
+		if value is None:
+			del self.database[name]
+		else:
+			self.database[name] = value
+
+	def begin(self):
+		self.transactions.insert(0, {})
+
+	def rollback(self):
+		for key, val in self.transactions[0].iteritems():
+			self.write(key, val)
+		self.transactions.pop(0)
+
+	def commit(self):
+		self.transactions = []
 
 def main():
 
-	redis_dictionary = {}
-	reverse_dictionary = {}
-	stack = []
+	db = SimpleDatabase()
 	running = True	
 
 	while running:
 		user_input = raw_input()
 		commands = user_input.split(' ')
+
 		if commands[0] == 'SET':
-			if stack == []:
-				set_(commands, redis_dictionary, reverse_dictionary, stack)
-			else:
-				set_(commands, stack[-1][0], stack[-1][1], stack)
+			db.set_(commands[1], commands[2])
+
 		if commands[0] == 'GET':
-			if stack == []:
-				get(commands, redis_dictionary)
-			else:
-				get(commands, stack[-1][0])
+			print db.get(commands[1])
+
 		if commands[0] == 'UNSET':
-			if stack == []:
-				unset(commands, redis_dictionary, reverse_dictionary)
-			else:
-				unset(commands, stack[-1][0], stack[-1][1])
+			db.unset(commands[1])
+
 		if commands[0] == 'NUMEQUALTO':
-			if stack == []:
-				numequalto(commands, reverse_dictionary)
-			else:
-				numequalto(commands, stack[-1][1])
+			print db.numequalto(commands[1])
+
 		if commands[0] == 'END':
 			running = False
+
 		if commands[0] =='BEGIN':
-			begin(redis_dictionary, reverse_dictionary, stack)
+			db.begin()
+
 		if commands[0] =='ROLLBACK':
-			rollback(stack)
+			if not db.transactions:
+				print 'NO TRANSACTION'
+			else:
+				db.rollback()
+
 		if commands[0] == 'COMMIT':
-			redis_dictionary = stack[-1][0]
-			reverse_dictionary = stack[-1][0]
-			stack = []
+			db.commit()
 
 if __name__ == '__main__':
 	main()
