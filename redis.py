@@ -14,7 +14,7 @@ class SimpleDatabase(object):
 
 	def get(self, name):
 		if name in self.database:
-			return str(self.database[name])
+			return self.database[name]
 		else:
 			return 'NULL'
 
